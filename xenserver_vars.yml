@@ -1,13 +1,27 @@
 ---
 hostname: vm01
 domainname: example.com
+
+# manual configuration of network
+disable_dhcp: false
+ipaddress: 192.168.1.2
 gateway: 192.168.1.1
 dnsservers: "8.8.8.8"
-network_name: "Network 0"
-sr_name: "Local storage"
-vm_template: "Debian Stretch 9.0 (64-bit)"
+netmaks: 255.255.255.0
+
+# xenserver details
 vm_name: "vm01"
-ipaddress: 192.168.1.10
-vps_type: VM-S
+network_name: "eth0"
+sr_name: "Local storage"
+vm_template: "Ubuntu Precise Pangolin 12.04 (64-bit)"
+os_iso: "ubuntu-12.04.5-server-amd64.iso"
+
+# geometry of the VM
+vcpu_count: 1
+cpu_weight: 64
+memory: 1073741824
+disksize: 26843545600
 runtime_environment: testing
-vcpus: 1
+
+# link to ubuntu preseed file
+preseed_url: http://web-server/files/preseed.cfg
