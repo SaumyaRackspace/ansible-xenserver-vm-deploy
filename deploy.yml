@@ -1,0 +1,6 @@
+---
+- name: Deploy new Ubuntu
+  hosts: xenservers
+  remote_user: root
+  roles:
+    - role: vm_deploy

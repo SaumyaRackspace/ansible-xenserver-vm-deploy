@@ -69,5 +69,17 @@ VPS to run on. If you have a Xenserver pool, please use the poolmaster.
 
 #### Example
 
-`ansible-playbook -i hosts --limit xen01 xenserver-vm-deploy.yml -e
+`ansible-playbook -i hosts --limit xen01 deploy.yml -e
 "hostname=vm01 vm_name=vm01 domainname=example.com"`
+
+## Goodies
+
+### Playbook to configure VM
+
+`init.yml` will let you install few basic stuff like dist-upgrade,
+install packages and configure DNS server.
+
+### Playbook to add additional disk
+
+`add_disk.yml` will let you create a disk on Xenserver and add it to
+the given VM.

@@ -1,0 +1,6 @@
+---
+- name: Configuring VMs
+  hosts: deployed_vms
+  remote_user: root
+  roles:
+    - role: vm_init

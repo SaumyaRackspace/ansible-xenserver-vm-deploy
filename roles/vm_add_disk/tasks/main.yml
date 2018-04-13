@@ -1,0 +1,27 @@
+---
+- name: Get UUID of share SR
+  command: xe sr-list name-label="{{ sr_name }}" --minimal
+  register: sruuid
+
+- name: Get UUID of VM
+  command: xe vm-list name-label="{{ vm_name }}" --minimal
+  register: vmuuid
+
+- name: Create VDI
+  command: xe vdi-create sr-uuid="{{ sruuid.stdout }}" name-label="{{ disk_name }}" type=user virtual-size="{{ disk_size }}"
+  register: vdiuuid
+
+- name: Create virtual block device (VBD)
+  command: xe vbd-create vm-uuid="{{ vmuuid.stdout }}" device=xvdb vdi-uuid="{{ vdiuuid.stdout }}" bootable=false mode=RW type=Disk
+  register: vbduuid
+
+- name: Shutdown VM
+  command: xe vm-shutdown uuid="{{ vmuuid.stdout }}"
+  ignore_errors: true
+
+- name: Activate VBD
+  command: xe vbd-plug uuid="{{ vbduuid.stdout }}"
+  ignore_errors: true
+
+- name: Start VM
+  command: xe vm-start uuid="{{ vmuuid.stdout }}"

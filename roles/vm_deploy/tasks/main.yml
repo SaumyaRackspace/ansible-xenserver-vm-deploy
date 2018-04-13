@@ -1,0 +1,101 @@
+---
+- name: Get UUID of share SR
+  command: xe sr-list name-label="{{ sr_name }}" --minimal
+  register: sruuid
+
+- name: Get the UUID of the VM template
+  command: xe template-list name-label="{{ vm_template }}" --minimal
+  register: templateuuid
+
+- name: Get the UUID of the network
+  command: xe network-list name-label="{{ network_name }}" --minimal
+  register: networkuuid
+
+- name: Deploy new VM
+  command: xe vm-install template={{ templateuuid.stdout }} new-name-label="{{ vm_name }}" sr-uuid={{ sruuid.stdout }}
+  register: vmuuid
+
+- name: Set vcpu priority
+  command: xe vm-param-set VCPUs-params:weight={{ cpu_weight }} uuid={{ vmuuid.stdout }}
+
+- name: Set vcpu count max
+  command: xe vm-param-set VCPUs-max={{ vcpu_count }} uuid={{ vmuuid.stdout }}
+  when: vcpu_count >= "2"
+
+- name: Set vcpu count at startup
+  command: xe vm-param-set VCPUs-at-startup={{ vcpu_count }} uuid={{ vmuuid.stdout }}
+  when: vcpu_count >= "2"
+
+- name: Get the UUID of the disk
+  command: xe vm-disk-list vbd-params=device=xvda uuid={{ vmuuid.stdout }} --minimal
+  register: vdiuuid
+
+- name: Set disk size
+  command: xe vdi-resize disk-size="{{ disksize }}" uuid={{ vdiuuid.stdout }}
+
+- name: Set memory
+  command: xe vm-memory-limits-set uuid={{ vmuuid.stdout }} dynamic-min="{{ memory }}" dynamic-max="{{ memory }}" static-max="{{ memory }}" static-min="{{ memory }}"
+
+- name: Attach VM to {{ network_name }}
+  command: xe vif-create vm-uuid={{ vmuuid.stdout }} network-uuid={{ networkuuid.stdout }} mac=random device=0
+
+- name: Set boot args
+  set_fact:
+    boot_args: "{{ man_boot_args if disable_dhcp else auto_boot_args }}"
+
+- name: Set preseed boot options
+  command: xe vm-param-set uuid={{ vmuuid.stdout }} PV-args="{{ boot_args }}"
+
+- name: Set install repository
+  command: xe vm-param-set uuid={{ vmuuid.stdout }} other-config:install-repository=cdrom
+
+- name: Get UUID of VM disk
+  command: xe vbd-list vm-uuid={{ vmuuid.stdout }} userdevice=0 --minimal
+  register: vbduuid
+
+- name: Disable boot from VM disk
+  command: xe vbd-param-set uuid={{ vbduuid.stdout }} bootable=false
+
+- name: Create and attach CDROM drive
+  command: xe vbd-create type=CD device=xvdd vm-uuid={{ vmuuid.stdout }} mode=ro
+  register: cduuid
+
+- name: Insert Ubuntu CD in CDROM drive
+  command: xe vm-cd-insert cd-name={{ os_iso }} vm={{ vmuuid.stdout }}
+
+- name: Enable boot from CD
+  command: xe vbd-param-set uuid={{ cduuid.stdout }} bootable=true
+
+- name: Boot VM and start preseed installation
+  command: xe vm-start uuid={{ vmuuid.stdout }}
+
+- name: Get the boot time for the VM
+  command: xe vm-param-get param-name=start-time  uuid={{ vmuuid.stdout}}
+  register: boottime
+
+- name: Watch for the first reboot
+  shell: export starttime={{ boottime.stdout }}; while [[ ${starttime} == {{ boottime.stdout }} ]]; do sleep 15; starttime=`xe vm-param-get param-name=start-time uuid={{ vmuuid.stdout }}`; done
+  async: 1800
+  poll: 15
+
+- name: Disable boot from CD
+  command: xe vbd-param-set uuid={{ cduuid.stdout }} bootable=false
+
+- name: Eject Ubuntu CD from CDROM drive
+  command: xe vm-cd-eject vm={{ vmuuid.stdout }}
+
+- name: Enable boot from VM disk
+  command: xe vbd-param-set uuid={{ vbduuid.stdout }} bootable=true
+
+- name: Set the name of the xentools ISO file | Xenserver 6
+  set_fact:
+    xentools_iso: xs-tools.iso
+  when: ansible_distribution_major_version|int <= 6
+
+- name: Set the name of the xentools ISO file | Xenserver 7
+  set_fact:
+    xentools_iso: guest-tools.iso
+  when: ansible_distribution_major_version|int >= 7
+
+- name: Insert Xentools CD in CDROM drive
+  command: xe vm-cd-insert cd-name={{ xentools_iso }} vm={{ vmuuid.stdout }}

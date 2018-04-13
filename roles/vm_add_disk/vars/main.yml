@@ -1,0 +1,5 @@
+---
+sr_name: "Local storage"
+vm_name: vm01
+disk_name: "{{vm_name}}-disk"
+disk_size: 26843545600

@@ -1,0 +1,7 @@
+dnsservers:
+  - 8.8.8.8
+
+packages:
+  - git
+  - vim
+  - screen

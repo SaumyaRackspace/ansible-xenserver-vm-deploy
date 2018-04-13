@@ -1,0 +1,65 @@
+- name: Check if xentools is installed
+  shell: dpkg-query -W 'xe-guest-utilities'
+  ignore_errors: true
+  register: is_xentools
+
+- block:
+  - name: Mount xentools CD
+    command: mount /dev/xvdd /mnt
+
+  - name: Run the xentools installer
+    command: /mnt/Linux/install.sh -n
+
+  - name: Unmount the xentools CD
+    command: umount /mnt
+  when: is_xentools|failed
+
+- name: Set DNS manually
+  become: true
+  lineinfile:
+    dest: /etc/resolvconf/resolv.conf.d/head
+    line: "nameserver {{ item }}"
+  with_items: "{{ dnsservers }}"
+
+- name: Update resolv.conf
+  shell: resolvconf -u
+  become: true
+
+#    - name: Find apt files
+#      find: path=/var/lib/apt/lists/ file_type=file
+#      register: files
+#
+#    - name: Find apt files
+#      find: path=/var/lib/apt/lists/ file_type=directory
+#      register: directories
+#
+#    - name: Clean APT packages list
+#      become: true
+#      file: state=absent path={{ item.path }}
+#      with_items:
+#        - "{{ files }}"
+#        - "{{ directories }}"
+
+- name: Clean APT packages list
+  become: true
+  shell: rm -rf /var/lib/apt/lists/*
+
+- name: Update and dist-upgrade apt packages
+  become: true
+  apt:
+    upgrade: dist
+    update_cache: yes
+    autoremove: yes
+
+- name: Install packages
+  become: yes
+  apt: pkg={{ item }} state=present update_cache=yes
+  with_items: "{{ packages }}"
+
+- name: Remove useless packages from the cache
+  apt:
+    autoclean: yes
+
+- name: Remove dependencies that are no longer required
+  apt:
+    autoremove: yes

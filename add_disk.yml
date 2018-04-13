@@ -1,0 +1,6 @@
+---
+- name: Add disk to VMs
+  hosts: xenservers
+  remote_user: root
+  roles:
+    - role: vm_add_disk
